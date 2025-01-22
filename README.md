@@ -4,11 +4,11 @@ This solution will allow users to unzip files in Amazon Simple Storage Service (
 
 The solution creates the following resources to unzip files in Amazon S3:
 
-**AWS Lambda Function(unzipins3-small-files)**: Use this to unzip files that are upto 1GB in size
+**AWS Lambda Function(s3unzip-small-files)**: Use this to unzip files that are upto 1GB in size
 
-**AWS Systems Manager Document(unzipins3ec2)**: Use this to unzip files of any size, preferably for files larger than 1 GB
+**AWS Systems Manager Document(s3unzipec2)**: Use this to unzip files of any size, preferably for files larger than 1 GB
 
-**AWS Step Functions State Machine(unzipins3-sf)**: Use this to unzip file of any size. The state machine has in built logic to  execute the AWS Lambda function for files upto 1 GB and AWS Systems Manager Document for larger files
+**AWS Step Functions State Machine(s3unzip-sf)**: Use this to unzip file of any size. The state machine has in built logic to  execute the AWS Lambda function for files upto 1 GB and AWS Systems Manager Document for larger files
 
 ## Sections ##
 * [Prerequisites](#prerequisites)
@@ -65,9 +65,9 @@ Target technology stack
 ### Code ### 
 The code for this solution is available in github in the [solution-to-unzip-in-amazon-s3](https://github.com/aws-samples/solution-to-unzip-in-amazon-s3) repository. The code repository contains the following cloud formation templates:
 
-**unzipins3-on-aws-iamroles-global.yaml** – AWS CloudFormation template for creating the IAM roles required for various AWS services used in this pattern. This template needs to be uploaded only once for an AWS account. This template creates four IAM roles - s3unzip-StepFunctions-Role, s3unzip-Lambda-Role, s3unzip-SSM-Role and s3unzip-EC2-Role
+**s3unzip-on-aws-iamroles-global.yaml** – AWS CloudFormation template for creating the IAM roles required for various AWS services used in this pattern. This template needs to be uploaded only once for an AWS account. This template creates four IAM roles - s3unzip-StepFunctions-Role, s3unzip-Lambda-Role, s3unzip-SSM-Role and s3unzip-EC2-Role
 
-**unzipins3-on-aws-services-regional.yaml** –  AWS CloudFormation template for creating the AWS Lambda, AWS Systems Manager Document and AWS Step Functions state machine. This template refers to the roles created by s3unzip-on-aws-iamroles-global.yaml. Hence s3unzip-on-aws-iamroles-global.yaml needs to be uploaded before uploading s3unzip-on-aws-services-regional.yaml. This template needs to be uploaded for each region where this pattern is needed. This template creates an AWS Step Function state machine (s3unzip-sf), an AWS Lambda Function (s3unzip-small-files) and AWS SSM Document (s3unzipec2) and an Amazon CloudWatch Logs (/aws/vendedlogs/states/s3unzip-Logs)
+**s3unzip-on-aws-services-regional.yaml** –  AWS CloudFormation template for creating the AWS Lambda, AWS Systems Manager Document and AWS Step Functions state machine. This template refers to the roles created by s3unzip-on-aws-iamroles-global.yaml. Hence s3unzip-on-aws-iamroles-global.yaml needs to be uploaded before uploading s3unzip-on-aws-services-regional.yaml. This template needs to be uploaded for each region where this pattern is needed. This template creates an AWS Step Function state machine (s3unzip-sf), an AWS Lambda Function (s3unzip-small-files) and AWS SSM Document (s3unzipec2) and an Amazon CloudWatch Logs (/aws/vendedlogs/states/s3unzip-Logs)
 
 ### Automation and scale ###
 This solution can be automated using CLIs, APIs and event driven approach. Multiple instances of this solution can be executed in parallel.
