@@ -14,12 +14,12 @@ The solution creates the following resources to unzip files in Amazon S3:
 * [Prerequisites](#prerequisites)
 * [Limitations](#limitations)
 * [Product Versions](#Product-Versions)
-* [Architecture](# Architecture)
-* [AWS Services](# AWS Services)
-* [Code](# Code)
-* [Automation and Scale](# Automation and Scale)
-* [Deploy](# Deploy)
-* [Sample Workflow Execution](# Sample Workflow Execution)
+* [Architecture](#architecture)
+* [AWS Services](#aws=services)
+* [Code](#code)
+* [Automation and Scale](#automation-and-scale)
+* [Deploy](#deploy)
+* [Sample Workflow Execution](#sample-workflow-execution)
 
 ## Prerequisites and limitations ##
 ### Prerequisites ###
