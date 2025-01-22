@@ -15,7 +15,7 @@ The solution creates the following resources to unzip files in Amazon S3:
 * [Limitations](#limitations)
 * [Product Versions](#Product-Versions)
 * [Architecture](#architecture)
-* [AWS Services](#aws=services)
+* [AWS Services](#aws-services)
 * [Code](#code)
 * [Automation and Scale](#automation-and-scale)
 * [Deploy](#deploy)
@@ -33,7 +33,7 @@ The solution creates the following resources to unzip files in Amazon S3:
 * This pattern currently accepts a single compressed file as an input. However, all resources for unzipping the file support concurrent executions. For example, if you have three zip files, you can execute the AWS Lambda function for each of them concurrently. The same is true for the AWS SSM Document and the AWS Step Functions.
 * This pattern only unzips the root level compressed file. It would not recursively unzip other compressed files included within the root level compressed file.
 
-### Product versions ###
+### Product Versions ###
 * Python 3.12 for AWS Lambda
 * al2023-ami-kernel-default-x86_64 image EC2 instances
 
