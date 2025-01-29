@@ -74,18 +74,93 @@ This solution can be automated using CLIs, APIs and event driven approach. Multi
 
 ### Deploy ###
 
-1. **Create AWS Cloudformation Stack for IAM Roles (only once per AWS account)**: Download s3unzip-on-aws-iamroles-global.yaml from the code repository. Create the AWS Cloudformation stack using this template. Remember to provide all required tags to be applied to the resources created by this AWS Cloudformation stack
-2. **Create AWS Cloudformation Stack for Other Services (once per Region within the AWS account)**: Download s3unzip-on-aws-services-regional.yaml from the code repository. Create the AWS Cloudformation stack using this template. Remember to provide all required tags to be applied to the resources created by this AWS Cloudformation stack. This template requires three parameters
-  *VPCId*:The VPC id where the AWS Lambda function should be launched.
-  *SubnetIds*: The subnet ids for the AWS Lambda function.
-  *SecurityGroupIds*: The Security group ids for the AWS Lambda function.   
+1. **Create AWS Cloudformation Stack for IAM Roles (only once per AWS account)**:
+   
+   a. Download s3unzip-on-aws-iamroles-global.yaml from the code repository.
+   
+   b. Create the AWS Cloudformation stack using this template.
+   
+   c. Remember to provide all required tags to be applied to the resources created by this AWS Cloudformation stack
+   
+2. **Create AWS Cloudformation Stack for Other Services (once per Region within the AWS account)**:
+   
+   a. Download s3unzip-on-aws-services-regional.yaml from the code repository.
+   
+   b. Create the AWS Cloudformation stack using this template.
+   
+   c. Remember to provide all required tags to be applied to the resources created by this AWS Cloudformation stack.
+   
+   d. This template requires three parameters
+   
+    *VPCId*:The VPC id where the AWS Lambda function should be launched.
+
+    *SubnetIds*: The subnet ids for the AWS Lambda function.
+
+    *SecurityGroupIds*: The Security group ids for the AWS Lambda function.   
+ 
 3. **Create VPC Endpoints**:
+   
    *Amazon S3 Gateway Endpoint*: Create an Amazon S3 Gateway Endpoint on the Amazon VPC(s) where AWS Lambda function and Amazon EC2 are expected to be launched.
+   
    *AWS Private Link AWS Step Functions and AWS SSM*: Create AWS Private Link for AWS Step Functions and AWS SSM on the Amazon VPC(s) where AWS Lambda function and Amazon EC2 are expected to be launched
-5. **Prepare for Testing**:
+   
+4. **Prepare for Testing**:
+   
    *Prepare small zip file*: Upload a zip file less than 1 GB in size to a new or existing S3 bucket
+   
    *Prepare large zip file*: Upload a zip file greater than 1 GB in size to a new or existing S3 bucket
 
+5. **Test the Pattern**:
+
+ 5.1 **Test unzipping a file upto 1 GB using AWS Step Function**:
+
+  a. Navigate to AWS Step Functions Console
+ 
+  b. Open state machine s3unzip-sf
+ 
+  c. Start Execution
+ 
+  d. Provide a JSON as an input. A sample parameter file is included below. Update the parameter values for your use case. 
+
+  {
+
+    "source_bucket": "s3unzip-bucket-8215-use1",
+
+    "source_key": "zipped/sample_data.zip",
+
+    "target_bucket": "s3unzip-bucket-8215-use1",
+
+    "target_prefix": "unzipped/sample_data/",
+
+    "output_bucket": "s3unzip-bucket-8215-use1",
+
+    "instance_type": "t3.medium",
+
+    "SubnetId": "subnet-xxxxab9020df2dxxx",
+
+    "SecurityGroupIds": "sg-xxxxd717b47599xxx"
+
+  }
+
+  source_bucket - Name of the s3 bucket containing the zip file
+
+  source_key - Name of the zip file
+
+  target_bucket - Name of the s3 bucket where the unzipped files need to be uploaded
+
+  target_prefix - Folder in the target_bucket where the unzipped files need to be uploaded
+
+  output_bucket - Name of the s3 bucket where the stderr and stdout from EC2 instance need to be uploaded. This will be used for files larger than 1 GB in size.
+
+  instance_type - EC2 instance type for unzipping the files. This will be used for files larger than 1 GB in size.
+
+  SubnetId - The subnet id where EC2 should be launched.
+
+  SecurityGroupIds - Security group ids for the EC2 instance.
+
+ e. After the execution completes notice that the path chosen was the one that uses Lambda function
+
+ f. Navigate to target_prefix in the target_bucket to validate that the files were unzipped according to the expectations.
 
 ## Security
 
