@@ -39,7 +39,8 @@ The solution creates the following resources to unzip files in Amazon S3:
 
 
 ### Architecture ###
-Target technology stack
+
+<img src="/s3unzip_arch_diagram.jpg">
 
 
 * The user executes the state machine using CLI/API/event driven method
