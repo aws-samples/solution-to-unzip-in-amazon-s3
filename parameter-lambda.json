@@ -1,0 +1,7 @@
+{
+  "source_bucket": "s3unzip-bucket-8215-use1",
+  "source_key": "zipped/sample_data.zip",
+  "target_bucket": "s3unzip-bucket-8215-use1",
+  "target_prefix": "unzipped/sample_data/",
+  "output_bucket": "s3unzip-bucket-8215-use1"
+}

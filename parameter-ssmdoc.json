@@ -1,0 +1,10 @@
+{
+"SourceBucket":["my-s3unzip-bucket"], 
+"SourceKey":["zipped/sample_data.tar.xz"], 
+"TargetBucket":["my-s3unzip-bucket"], 
+"TargetPrefix":["unzipped/sample_data-tar-xz/"], 
+"OutputBucket":["my-s3unzip-bucket"], 
+"InstanceType":["t3.medium"], 
+"SubnetId":["subnet-xxxxc4cb0391a9xxxx"], 
+"SecurityGroupIds":["sg-xxxx7636f9a92exxx"]
+}
