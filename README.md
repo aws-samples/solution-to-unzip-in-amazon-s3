@@ -74,14 +74,17 @@ This solution can be automated using CLIs, APIs and event driven approach. Multi
 
 ### Deploy ###
 
-1. Create AWS Cloudformation Stack for IAM Roles (only once per AWS account): Download s3unzip-on-aws-iamroles-global.yaml from the code repository. Create the AWS Cloudformation stack using this template. Remember to provide all required tags to be applied to the resources created by this AWS Cloudformation stack
-2. Create AWS Cloudformation Stack for Other Services ( once per Region within the AWS account): Download s3unzip-on-aws-services-regional.yaml from the code repository. Create the AWS Cloudformation stack using this template. Remember to provide all required tags to be applied to the resources created by this AWS Cloudformation stack. This template requires three parameters
-
-**VPCId**:The VPC id where the AWS Lambda function should be launched.
-
-**SubnetIds**: The subnet ids for the AWS Lambda function.
-
-**SecurityGroupIds**: The Security group ids for the AWS Lambda function.
+1. **Create AWS Cloudformation Stack for IAM Roles (only once per AWS account)**: Download s3unzip-on-aws-iamroles-global.yaml from the code repository. Create the AWS Cloudformation stack using this template. Remember to provide all required tags to be applied to the resources created by this AWS Cloudformation stack
+2. **Create AWS Cloudformation Stack for Other Services (once per Region within the AWS account)**: Download s3unzip-on-aws-services-regional.yaml from the code repository. Create the AWS Cloudformation stack using this template. Remember to provide all required tags to be applied to the resources created by this AWS Cloudformation stack. This template requires three parameters
+  *VPCId*:The VPC id where the AWS Lambda function should be launched.
+  *SubnetIds*: The subnet ids for the AWS Lambda function.
+  *SecurityGroupIds*: The Security group ids for the AWS Lambda function.   
+3. **Create VPC Endpoints**:
+   *Amazon S3 Gateway Endpoint*: Create an Amazon S3 Gateway Endpoint on the Amazon VPC(s) where AWS Lambda function and Amazon EC2 are expected to be launched.
+   *AWS Private Link AWS Step Functions and AWS SSM*: Create AWS Private Link for AWS Step Functions and AWS SSM on the Amazon VPC(s) where AWS Lambda function and Amazon EC2 are expected to be launched
+5. **Prepare for Testing**:
+   *Prepare small zip file*: Upload a zip file less than 1 GB in size to a new or existing S3 bucket
+   *Prepare large zip file*: Upload a zip file greater than 1 GB in size to a new or existing S3 bucket
 
 
 ## Security
