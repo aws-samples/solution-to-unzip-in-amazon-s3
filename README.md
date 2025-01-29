@@ -72,6 +72,18 @@ The code for this solution is available in github in the [solution-to-unzip-in-a
 ### Automation and scale ###
 This solution can be automated using CLIs, APIs and event driven approach. Multiple instances of this solution can be executed in parallel.
 
+### Deploy ###
+
+1. Create AWS Cloudformation Stack for IAM Roles (only once per AWS account): Download s3unzip-on-aws-iamroles-global.yaml from the code repository. Create the AWS Cloudformation stack using this template. Remember to provide all required tags to be applied to the resources created by this AWS Cloudformation stack
+2. Create AWS Cloudformation Stack for Other Services ( once per Region within the AWS account): Download s3unzip-on-aws-services-regional.yaml from the code repository. Create the AWS Cloudformation stack using this template. Remember to provide all required tags to be applied to the resources created by this AWS Cloudformation stack. This template requires three parameters
+
+**VPCId**:The VPC id where the AWS Lambda function should be launched.
+
+**SubnetIds**: The subnet ids for the AWS Lambda function.
+
+**SecurityGroupIds**: The Security group ids for the AWS Lambda function.
+
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
