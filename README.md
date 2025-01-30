@@ -42,7 +42,7 @@ The solution creates the following resources to unzip files in Amazon S3:
 
 ### Architecture ###
 
-<img src="s3unzip_arch_diagram.png">
+<img src="images/s3unzip_arch_diagram.png">
 
 
 * The user executes the state machine using CLI/API/event driven method
@@ -116,7 +116,7 @@ This solution can be automated using CLIs, APIs and event driven approach. Multi
    
    *Prepare large zip file*: Upload a zip file greater than 1 GB in size to a new or existing S3 bucket
 
-2. **Test the Pattern**:
+2. **Test unzipping a file upto 1 GB using AWS Step Function**:
 
         a. Navigate to AWS Step Functions Console
  
@@ -127,7 +127,6 @@ This solution can be automated using CLIs, APIs and event driven approach. Multi
         d. Provide a JSON as an input. A sample parameter json is included below. Update the parameter values for your use case. 
 
         {
-
           "source_bucket": "s3unzip-bucket-8215-use1",
           "source_key": "zipped/sample_data.zip",
           "target_bucket": "s3unzip-bucket-8215-use1",
@@ -158,7 +157,94 @@ This solution can be automated using CLIs, APIs and event driven approach. Multi
 
        f. Navigate to target_prefix in the target_bucket to validate that the files were unzipped according to the expectations.
 
-       g. Repeat these steps for small file (<=1GB) and large file (> 1GB).
+3. **Test unzipping a file upto 1 GB using AWS Step Function**:
+
+        a. Re-execute using the same parameters
+ 
+        b. Note that the execution fails with error that the target location is not empty
+
+4. **Test unzipping a file larger than 1 GB using AWS Step Function**:
+
+        a. Navigate to AWS Step Functions Console
+ 
+        b. Open state machine s3unzip-sf
+ 
+        c. Click on Start Execution
+ 
+        d. Provide a JSON as an input. A sample parameter json is included below. Update the parameter values for your use case. 
+
+        {
+          "source_bucket": "s3unzip-bucket-8215-use1",
+          "source_key": "zipped/small.tar.gz",
+          "target_bucket": "s3unzip-bucket-8215-use1",
+          "target_prefix": "unzipped/small_tar_gz/",
+          "output_bucket": "s3unzip-bucket-8215-use1",
+          "instance_type": "t3.medium",
+          "SubnetId": "subnet-xxxxab9020df2dxxx",
+          "SecurityGroupIds": "sg-xxxxd717b47599xxx"
+        }
+
+       e. After the execution completes notice that the path chosen was the one that uses AWS SSM Document
+
+       f. Navigate to target_prefix in the target_bucket to validate that the files were unzipped according to the expectations.
+
+4. **Test unzipping a file upto 1 GB using AWS Lambda function**:
+
+       a. Navigate to AWS Lambda Console
+
+       b. Open function s3unzip-small-files
+
+       c. Navigate to the Test Events Section
+
+       d. Create a new one by clicking on the "Create new test event" button. Give your test event a name and provide the JSON input data that you want to pass to your Lambda function. A sample parameter file is included below. Update the parameter values to fit your use case. 
+
+        {
+          "source_bucket": "s3unzip-bucket-8215-use1",
+          "source_key": "zipped/sample_data.zip",
+          "target_bucket": "s3unzip-bucket-8215-use1",
+          "target_prefix": "unzipped/sample_data/",
+          "output_bucket": "s3unzip-bucket-8215-use1",
+        }
+
+       e. After the execution completes, review the execution details to validate successful completion. 
+
+       f. Navigate to target_prefix in the target_bucket to validate that the files were unzipped according to the expectations.
+
+       g. Re-execute the lambda function with the same payload
+
+       h. Notice the failure with error message that the target location is not empty
+   
+5. **Test unzipping file larger than 1 GB using AWS SSM Document**:
+
+       a. Navigate to AWS Systems Manager Console
+
+       b. Open document s3unzipec2
+
+       c. Click the “Execute Automation” button at the top right corner
+
+       d. Provide Input Parameters. A sample parameter file is included below. Update the parameter values for your use case. 
+
+       {
+
+       "SourceBucket":["my-s3unzip-bucket"], 
+       "SourceKey":["zipped/sample_data.tar.gz"], 
+       "TargetBucket":["my-s3unzip-bucket"], 
+       "TargetPrefix":["unzipped/sample_data-tar-gz/"], 
+       "OutputBucket":["my-s3unzip-bucket"], 
+       "InstanceType":["t3.medium"], 
+       "SubnetId":["subnet-xxxxc4cb0391a9xxxx"], 
+       "SecurityGroupIds":["sg-xxxx7636f9a92exxx"]
+       }
+
+       e. Monitor the progress of execution.
+
+       f. After the execution completes, review the execution details to validate successful completion. 
+
+       g. Navigate to target_prefix in the target_bucket to validate that the files were unzipped according to the expectations.
+
+       h. Re-execute the automation with same Input parameters
+
+       i. Notice the failure with error message that the target location is not empty
 
 ### Troubleshooting ###
 
@@ -177,6 +263,20 @@ This solution can be automated using CLIs, APIs and event driven approach. Multi
 * When providing the source_key parameter, ensure that the file type is one of the supported formats - zip, tar.gz, tgz, gz, tar.bz2, tbz, bz2, tar.xz, txz and xz
 
 * Ensure that the target location is empty before executing the solution
+
+### Sample Workflow Execution ###
+
+1. The following diagram shows the AWS Step Functions execution graph view for a successful processing of files upto 1 GB using Lambda
+<img src="images/stepfunctions_graph_small_file.png">
+
+2. The following diagram shows the AWS Step Functions execution graph view for an unsuccessful run because the target location for uploading unzipped files is not empty.
+<img src="images/stepfunctions_graph_data_override_protection.png">
+
+3. The following diagram shows the AWS Step Functions workflow for a successful processing of files larger than 1 GB using SSM Document.
+<img src="images/stepfunctions_graph_large_file.png">
+
+4. The following diagram shows the SSM Document Execution for successful processing of files larger than 1 GB
+<img src="images/SSM_document_execution_log.png">
 
 ## Security
 
