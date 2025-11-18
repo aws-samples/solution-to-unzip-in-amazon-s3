@@ -188,64 +188,6 @@ This solution can be automated using CLIs, APIs and event driven approach. Multi
 
        f. Navigate to target_prefix in the target_bucket to validate that the files were unzipped according to the expectations.
 
-4. **Test unzipping a file upto 1 GB using AWS Lambda function**:
-
-       a. Navigate to AWS Lambda Console
-
-       b. Open function s3unzip-small-files
-
-       c. Navigate to the Test Events Section
-
-       d. Create a new one by clicking on the "Create new test event" button. Give your test event a name and provide the JSON input data that you want to pass to your Lambda function. A sample parameter file is included below. Update the parameter values to fit your use case. 
-
-        {
-          "source_bucket": "s3unzip-bucket-8215-use1",
-          "source_key": "zipped/sample_data.zip",
-          "target_bucket": "s3unzip-bucket-8215-use1",
-          "target_prefix": "unzipped/sample_data/",
-          "output_bucket": "s3unzip-bucket-8215-use1",
-        }
-
-       e. After the execution completes, review the execution details to validate successful completion. 
-
-       f. Navigate to target_prefix in the target_bucket to validate that the files were unzipped according to the expectations.
-
-       g. Re-execute the lambda function with the same payload
-
-       h. Notice the failure with error message that the target location is not empty
-   
-5. **Test unzipping file larger than 1 GB using AWS SSM Document**:
-
-       a. Navigate to AWS Systems Manager Console
-
-       b. Open document s3unzipec2
-
-       c. Click the “Execute Automation” button at the top right corner
-
-       d. Provide Input Parameters. A sample parameter file is included below. Update the parameter values for your use case. 
-
-       {
-
-       "SourceBucket":["my-s3unzip-bucket"], 
-       "SourceKey":["zipped/sample_data.tar.gz"], 
-       "TargetBucket":["my-s3unzip-bucket"], 
-       "TargetPrefix":["unzipped/sample_data-tar-gz/"], 
-       "OutputBucket":["my-s3unzip-bucket"], 
-       "InstanceType":["t3.medium"], 
-       "SubnetId":["subnet-xxxxc4cb0391a9xxxx"], 
-       "SecurityGroupIds":["sg-xxxx7636f9a92exxx"]
-       }
-
-       e. Monitor the progress of execution.
-
-       f. After the execution completes, review the execution details to validate successful completion. 
-
-       g. Navigate to target_prefix in the target_bucket to validate that the files were unzipped according to the expectations.
-
-       h. Re-execute the automation with same Input parameters
-
-       i. Notice the failure with error message that the target location is not empty
-
 ### Troubleshooting ###
 
 **AWS Cloudformation Stack Creation Failure**: You may get this error when creating the AWS Cloudformation stack using s3unzip-on-aws-iamroles-global.yaml. This will happen if you have already uploaded this template for an account. This template creates global resources (IAM role). Therefore it needs to be uploaded only once per account. If you need to install this solution in another region only s3unzip-on-aws-services-regional.yaml needs to be uploaded
