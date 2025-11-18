@@ -170,7 +170,7 @@ Resources:
                       raise Exception(f"Target locaton s3://{target_bucket}/{target_prefix} is not empty. Cannot unzip to this location to prevent accidental overwrite of existing objects. Empty the target location and try again.")
                   
                   ObjectSize = s3.head_object(Bucket=source_bucket, Key=source_key)['ContentLength']
-                  VolumeSize = math.ceil(math.ceil(ObjectSize/(8*1024*1024*1024))*5)*8
+                  VolumeSize = math.ceil(math.ceil(ObjectSize/(8*1024*1024*1024))*20)*8
 
                   # Define the parameter name for the latest AL2023 AMI ID
                   parameter_name = '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64'
