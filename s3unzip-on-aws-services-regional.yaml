@@ -12,6 +12,7 @@ Parameters:
   SecurityGroupIds:
     Type: List<AWS::EC2::SecurityGroup::Id>
     Description: The list of Security Group IDs to be associated with the Lambda function
+
 Resources:
   LogsLogGroup00awsvendedlogsstatesmys3UnzipLogs00jsKZ1:
     UpdateReplacePolicy: "Retain"
@@ -29,7 +30,7 @@ Resources:
       DocumentFormat: "YAML"
       DocumentType: "Automation"
       Name: "s3unzipec2"
-      Content: 
+      Content:
         schemaVersion: '0.3'
         description: |-
           ## Intent
@@ -91,7 +92,7 @@ Resources:
           * CreateScript
           * UnzipFile
           * TerminateInstances
-        assumeRole: !Join ["", ["arn:aws:iam::", !Ref 'AWS::AccountId', ":role/s3unzip-SSM-Role"]]
+        assumeRole: arn:aws:iam::821584368891:role/s3unzip-SSM-Role
         parameters:
           SourceBucket:
             description: The name of the S3 bucket that contains the zip file
@@ -109,6 +110,10 @@ Resources:
             description: The key of the zipped file
             type: String
             allowedPattern: ^[a-zA-Z0-9!_.*'()\-%@&=+/$,\s]+$
+          SubnetId:
+            description: The subnet where EC2 should be launched
+            type: String
+            allowedPattern: ^subnet-[0-9a-f]{8,17}$
           TargetBucket:
             description: The S3 bucket where the unzipped files need to be stored
             type: String
@@ -117,19 +122,16 @@ Resources:
             description: The type of instance to be launched for unzipped the file
             type: String
             allowedPattern: ^(t2|t3|t3a|m4|m5|m5a|m5ad|m5d|m6g|m6gd|c4|c5|c5a|c5ad|c5d|c5n|c6g|c6gd|c6gn|r4|r5|r5a|r5ad|r5d|r5n|r6g|r6gd|x1|x1e|z1d|u-6tb1|u-8tb1|u-9tb1|u-12tb1|u-18tb1|u-24tb1|inf1)\.([a-z0-9]+)$
-          SubnetId:
-            type: String
-            description: The subnet where EC2 should be launched
-            allowedPattern: ^subnet-[0-9a-f]{8,17}$
           SecurityGroupIds:
-            type: StringList
             description: Security Groups for the EC2 instance
+            type: StringList
             allowedPattern: ^(sg-[0-9a-f]{8,17})(,sg-[0-9a-f]{8,17})*$
         mainSteps:
           - description: This step will generate the commands that will be executed on the EC2 instance
             name: RunScript_create_commands_for_ec2
             action: aws:executeScript
-            nextStep: LaunchInstance
+            nextStep: LaunchSpotInstance
+            isCritical: false
             isEnd: false
             onCancel: Abort
             onFailure: Abort
@@ -167,9 +169,7 @@ Resources:
                       target_prefix_empty = "true"
                       raise Exception(f"Target locaton s3://{target_bucket}/{target_prefix} is not empty. Cannot unzip to this location to prevent accidental overwrite of existing objects. Empty the target location and try again.")
                   
-                  print(source_bucket, source_key, target_bucket, target_prefix, target_prefix_empty)  
                   ObjectSize = s3.head_object(Bucket=source_bucket, Key=source_key)['ContentLength']
-                  print(ObjectSize)
                   VolumeSize = math.ceil(math.ceil(ObjectSize/(8*1024*1024*1024))*5)*8
 
                   # Define the parameter name for the latest AL2023 AMI ID
@@ -202,14 +202,14 @@ Resources:
                     "latest_ami_id": latest_ami_id,
                     "execution_id": execution_id
                   }
-              Runtime: python3.9
+              Runtime: python3.11
               InputPayload:
+                execution_id: '{{ automation:EXECUTION_ID }}'
                 output_bucket: '{{ OutputBucket }}'
                 source_bucket: '{{ SourceBucket }}'
                 target_bucket: '{{ TargetBucket }}'
                 source_key: '{{ SourceKey }}'
                 target_prefix: '{{ TargetPrefix }}'
-                execution_id: '{{ automation:EXECUTION_ID }}'
               Handler: script_handler
             outputs:
               - Type: Integer
@@ -228,12 +228,13 @@ Resources:
                 Name: execution_id
                 Selector: $.Payload.execution_id
           - description: Launch the EC2 instance that will be used to unzip files
-            name: LaunchInstance
+            name: LaunchOnDemandInstance
             action: aws:runInstances
-            nextStep: WaitOnEC2
+            nextStep: WaitForOnDemandEC2Running
+            isCritical: false
             isEnd: false
-            onCancel: step:TerminateInstances
-            onFailure: step:TerminateInstances
+            onCancel: step:InstanceIdForTermination
+            onFailure: step:InstanceIdForTermination
             inputs:
               MaxInstanceCount: 1
               TagSpecifications:
@@ -245,36 +246,42 @@ Resources:
               BlockDeviceMappings:
                 - Ebs:
                     VolumeType: gp3
-                    VolumeSize: '{{ RunScript_create_commands_for_ec2.VolumeSize }}'
-                    Encrypted: true
                     KmsKeyId: alias/aws/ebs
+                    Encrypted: true
+                    VolumeSize: '{{ RunScript_create_commands_for_ec2.VolumeSize }}'
                   DeviceName: /dev/xvda
-              InstanceType: '{{ InstanceType }}'
-              MinInstanceCount: 1
-              IamInstanceProfileArn: !Join ["", ["arn:aws:iam::", !Ref 'AWS::AccountId', ":instance-profile/s3unzip-EC2-Role"]]
               SubnetId: '{{ SubnetId }}'
+              InstanceType: '{{ InstanceType }}'
               SecurityGroupIds: '{{ SecurityGroupIds }}'
-          - name: WaitOnEC2
+              MinInstanceCount: 1
+              IamInstanceProfileArn: arn:aws:iam::821584368891:instance-profile/s3unzip-EC2-Role
+            outputs:
+              - Name: OnDemandInstanceId
+                Selector: $.InstanceIds[0]
+                Type: String
+          - name: WaitForOnDemandEC2Running
             action: aws:waitForAwsResourceProperty
             timeoutSeconds: 300
-            nextStep: UnzipFile
+            nextStep: SetInstanceId
+            isCritical: false
             isEnd: false
-            onCancel: step:TerminateInstances
-            onFailure: step:TerminateInstances
+            onCancel: step:InstanceIdForTermination
+            onFailure: step:InstanceIdForTermination
             inputs:
               PropertySelector: Reservations[0].Instances[0].State.Name
               DesiredValues:
                 - running
               Service: ec2
               Api: DescribeInstances
-              InstanceIds: '{{ LaunchInstance.InstanceIds }}'
+              InstanceIds: '{{ LaunchOnDemandInstance.OnDemandInstanceId }}'
           - description: ''
             name: UnzipFile
             action: aws:runCommand
             nextStep: Cleanup
+            isCritical: false
             isEnd: false
-            onCancel: step:TerminateInstances
-            onFailure: step:TerminateInstances
+            onCancel: step:InstanceIdForTermination
+            onFailure: step:InstanceIdForTermination
             inputs:
               Parameters:
                 commands:
@@ -296,21 +303,24 @@ Resources:
                   - aws s3 cp ./unzipped s3://{{ OutputBucket }}/{{ TargetPrefix }} --recursive 1>/dev/null
                   - command_exit_status=$?; capture_status
                   - ''
+              InstanceIds:
+                - '{{ SetInstanceId.InstanceId }}'
               DocumentName: AWS-RunShellScript
-              InstanceIds: '{{ LaunchInstance.InstanceIds }}'
           - name: Cleanup
             action: aws:runCommand
-            nextStep: TerminateInstances
+            nextStep: InstanceIdForTermination
+            isCritical: false
             isEnd: false
-            onCancel: step:TerminateInstances
-            onFailure: step:TerminateInstances
+            onCancel: step:InstanceIdForTermination
+            onFailure: step:InstanceIdForTermination
             inputs:
               Parameters:
                 commands:
                   - rm -r /home/{{ RunScript_create_commands_for_ec2.execution_id }}
                   - command_exit_status=$?; if [ $command_exit_status -ne 0 ]; then echo "Command failed." ; exit $command_exit_status; fi;
+              InstanceIds:
+                - '{{ SetInstanceId.InstanceId }}'
               DocumentName: AWS-RunShellScript
-              InstanceIds: '{{ LaunchInstance.InstanceIds }}'
           - description: Terminate the EC2 Instance
             name: TerminateInstances
             action: aws:executeAwsApi
@@ -318,7 +328,130 @@ Resources:
             inputs:
               Service: ec2
               Api: TerminateInstances
-              InstanceIds: '{{ LaunchInstance.InstanceIds }}'
+              InstanceIds:
+                - '{{ InstanceIdForTermination.InstanceId }}'
+          - description: Launch Spot EC2 Instance
+            name: LaunchSpotInstance
+            action: aws:executeAwsApi
+            nextStep: WaitForSpotRequest
+            isCritical: false
+            isEnd: false
+            onCancel: step:InstanceIdForTermination
+            onFailure: step:InstanceIdForTermination
+            inputs:
+              InstanceCount: 1
+              LaunchSpecification:
+                ImageId: '{{ RunScript_create_commands_for_ec2.latest_ami_id }}'
+                SubnetId: '{{ SubnetId }}'
+                InstanceType: '{{ InstanceType }}'
+                SecurityGroupIds: '{{ SecurityGroupIds }}'
+                IamInstanceProfile:
+                  Arn: arn:aws:iam::821584368891:instance-profile/s3unzip-EC2-Role
+                BlockDeviceMappings:
+                  - Ebs:
+                      VolumeType: gp3
+                      KmsKeyId: alias/aws/ebs
+                      Encrypted: true
+                      VolumeSize: '{{ RunScript_create_commands_for_ec2.VolumeSize }}'
+                    DeviceName: /dev/xvda
+              Service: ec2
+              Api: RequestSpotInstances
+            outputs:
+              - Type: String
+                Name: SpotInstanceRequestId
+                Selector: $.SpotInstanceRequests[0].SpotInstanceRequestId
+          - name: WaitForSpotRequest
+            action: aws:waitForAwsResourceProperty
+            timeoutSeconds: 600
+            nextStep: GetSpotInstanceId
+            isCritical: false
+            isEnd: false
+            onCancel: step:InstanceIdForTermination
+            onFailure: step:LaunchOnDemandInstance
+            inputs:
+              PropertySelector: $.SpotInstanceRequests[0].State
+              DesiredValues:
+                - active
+              Service: ec2
+              Api: DescribeSpotInstanceRequests
+              SpotInstanceRequestIds:
+                - '{{ LaunchSpotInstance.SpotInstanceRequestId }}'
+          - name: GetSpotInstanceId
+            action: aws:executeAwsApi
+            nextStep: WaitForSpotInstanceRunning
+            isCritical: false
+            isEnd: false
+            onCancel: step:InstanceIdForTermination
+            onFailure: step:InstanceIdForTermination
+            inputs:
+              Service: ec2
+              Api: DescribeSpotInstanceRequests
+              SpotInstanceRequestIds:
+                - '{{ LaunchSpotInstance.SpotInstanceRequestId }}'
+            outputs:
+              - Name: SpotInstanceId
+                Selector: $.SpotInstanceRequests[0].InstanceId
+                Type: String
+          - name: WaitForSpotInstanceRunning
+            action: aws:waitForAwsResourceProperty
+            timeoutSeconds: 600
+            nextStep: SetInstanceId
+            isCritical: false
+            isEnd: false
+            onCancel: step:InstanceIdForTermination
+            onFailure: step:InstanceIdForTermination
+            inputs:
+              PropertySelector: $.Reservations[0].Instances[0].State.Name
+              DesiredValues:
+                - running
+              Service: ec2
+              Api: DescribeInstances
+              InstanceIds:
+                - '{{ GetSpotInstanceId.SpotInstanceId }}'
+          - name: SetInstanceId
+            action: aws:executeScript
+            nextStep: UnzipFile
+            isCritical: false
+            isEnd: false
+            onCancel: step:InstanceIdForTermination
+            onFailure: step:InstanceIdForTermination
+            inputs:
+              Script: |
+                def script_handler(events, context):
+                  spot_id = events.get('SpotInstanceId', '') or ''
+                  ondemand_id = events.get('OnDemandInstanceId', '') or ''
+                  instance_id = spot_id if spot_id else ondemand_id
+                  return {'InstanceId': instance_id}
+              Runtime: python3.11
+              InputPayload:
+                SpotInstanceId: '{{ GetSpotInstanceId.SpotInstanceId }}'
+                OnDemandInstanceId: '{{ LaunchOnDemandInstance.OnDemandInstanceId }}'
+              Handler: script_handler
+            outputs:
+              - Type: String
+                Name: InstanceId
+                Selector: $.Payload.InstanceId
+          - name: InstanceIdForTermination
+            action: aws:executeScript
+            nextStep: TerminateInstances
+            isCritical: false
+            isEnd: false
+            inputs:
+              Script: |
+                def script_handler(events, context):
+                  spot_id = events.get('SpotInstanceId', '') or ''
+                  ondemand_id = events.get('OnDemandInstanceId', '') or ''
+                  instance_id = spot_id if spot_id else ondemand_id
+                  return {'InstanceId': instance_id}
+              Runtime: python3.11
+              InputPayload:
+                SpotInstanceId: '{{ GetSpotInstanceId.SpotInstanceId }}'
+                OnDemandInstanceId: '{{ LaunchOnDemandInstance.OnDemandInstanceId }}'
+              Handler: script_handler
+            outputs:
+              - Type: String
+                Name: InstanceId
+                Selector: $.Payload.InstanceId
   LambdaFunction00s3unzipsmallfiles004S7wS:
     UpdateReplacePolicy: "Retain"
     Type: "AWS::Lambda::Function"
@@ -332,7 +465,7 @@ Resources:
       Description: ""
       TracingConfig:
         Mode: "PassThrough"
-      Timeout: 900
+      Timeout: 180
       RuntimeManagementConfig:
         UpdateRuntimeOn: "Auto"
       FileSystemConfigs: []
@@ -340,7 +473,9 @@ Resources:
         LogFormat: "Text"
         LogGroup: "/aws/lambda/s3unzip-lambda-small-files"
       EphemeralStorage:
-        Size: 10240
+        Size: 512
+      SnapStart:
+        ApplyOn: PublishedVersions
       Architectures:
       - "x86_64"
       VpcConfig:
@@ -361,10 +496,13 @@ Resources:
           import gzip
           import bz2
           import lzma
-
+          import logging
+          
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
 
           def lambda_handler(event, context):
-
+            logger.info("Starting Lambda Execution")
             source_bucket = event['source_bucket']
             source_key = event['source_key']
             target_bucket = event['target_bucket']
@@ -389,6 +527,8 @@ Resources:
             ObjectSize = object_metadata['ContentLength']
             content_type = object_metadata['ContentType']
             
+            logger.info(f"Compressed file size: {ObjectSize}") 
+
             if ObjectSize > 1000000000:
               #raise ValueError("Objects greater than 1GB cannot be unzipped using this Lambda function")
               return {'StatusCode' : 400,
@@ -404,13 +544,17 @@ Resources:
             # Determine the compression type and decompress the data
             decompressed_data = decompress_data(compressed_data, source_key)
 
+            logger.info(f"File decompressed") 
+
             # Upload the decompressed files to the target S3 bucket with encryption
 
             s3 = boto3.client('s3')
             for filename, content in decompressed_data.items():
               target_key = f'{target_prefix}{filename}'
               s3.put_object(Bucket=target_bucket, Key=target_key, Body=content)
-              
+
+            logger.info(f"Decompressed file uploaded to S3") 
+
             return {
                 "StatusCode": 200,
                 "body": f"Extracted and uploaded files from {source_bucket}/{source_key} to {target_bucket}/{target_prefix}"
@@ -463,6 +607,19 @@ Resources:
 
           def decompress_xz(data, target_file_name):
               return {target_file_name: lzma.decompress(data)}
+  MyLambdaVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !Ref LambdaFunction00s3unzipsmallfiles004S7wS
+      Description: "Auto-published version"
+
+  MyLambdaAlias:
+    Type: AWS::Lambda::Alias
+    Properties:
+      FunctionName: !Ref LambdaFunction00s3unzipsmallfiles004S7wS
+      FunctionVersion: !GetAtt MyLambdaVersion.Version
+      Name: Prod
+
   StepFunctionsStateMachine00stateMachinemys3Unzip00w146u:
     UpdateReplacePolicy: "Retain"
     Type: "AWS::StepFunctions::StateMachine"
@@ -527,6 +684,14 @@ Resources:
               },
               "StartAutomationExecution: Execute SSM Document": {
                 "Type": "Task",
+                "Retry": [
+                  {
+                    "ErrorEquals": ["States.ALL"],
+                    "IntervalSeconds": 90,
+                    "MaxAttempts": 3,
+                    "BackoffRate": 2.0
+                  }
+                ],
                 "Next": "GetAutomationExecution: Check SSM Document Execution Status",
                 "Parameters": {
                   "DocumentName": "s3unzipec2",
@@ -624,19 +789,14 @@ Resources:
                 "Resource": "arn:aws:states:::lambda:invoke",
                 "Parameters": {
                   "Payload.$": "$",
-                  "FunctionName": "${LambdaFunctionArn}"
+                  "FunctionName": "${LambdaFunctionArn}:Prod"
                 },
                 "Retry": [
                   {
-                    "ErrorEquals": [
-                      "Lambda.ServiceException",
-                      "Lambda.AWSLambdaException",
-                      "Lambda.SdkClientException",
-                      "Lambda.TooManyRequestsException"
-                    ],
-                    "IntervalSeconds": 1,
+                    "ErrorEquals": ["States.ALL"],
+                    "IntervalSeconds": 90,
                     "MaxAttempts": 3,
-                    "BackoffRate": 2
+                    "BackoffRate": 2.0
                   }
                 ],
                 "ResultPath": "$.LambdaOutput",
