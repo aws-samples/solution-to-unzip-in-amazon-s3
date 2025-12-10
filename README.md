@@ -31,9 +31,9 @@ The solution creates the following resources to unzip files in Amazon S3:
 * Amazon S3 Gateway Endpoint on the Amazon VPC(s) and AWS Private Link for AWS Step Functions and AWS SSM on the Amazon VPC(s) where AWS Lambda function and Amazon EC2 are expected to be launched
 
 ### Limitations ###
-* This solution currently supports the following formats - zip, tar.gz, tgz, gz, tar.bz2, tbz, bz2, tar.xz, txz and xz.
-* This solution currently accepts a single compressed file as an input. However, all resources for unzipping the file support concurrent executions. For example, if you have three zip files, you can execute the AWS Lambda function for each of them concurrently. The same is true for the AWS SSM Document and the AWS Step Functions.
-* This solution only unzips the root level compressed file. It would not recursively unzip other compressed files included within the root level compressed file.
+* This solution handles a wide range of compression formats including zip, tar, tar.gz, tgz, gz, tar.bz2, tbz, bz2, tar.xz, txz, and xz - covering the most commonly used archive types in enterprise environments.
+* While designed to process one compressed file per execution, this solution fully supports parallel processing through concurrent invocations. You can simultaneously decompress multiple files by triggering the AWS Step Functions workflow for each file independently, enabling efficient batch processing of large numbers of archives.
+* This solution only unzips the root level compressed file by default. For nested compressed files within the root archive, you can implement a programmatic approach (such as a recursive function or loop) that processes the extracted files, identifies any nested archives, and invokes the solution again on those files. This allows for handling multi-level compressed file structures through custom orchestration.
 
 ### Product Versions ###
 * Python 3.12 for AWS Lambda

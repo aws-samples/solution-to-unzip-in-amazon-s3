@@ -131,7 +131,7 @@ Resources:
             name: RunScript_create_commands_for_ec2
             action: aws:executeScript
             nextStep: LaunchSpotInstance
-            isCritical: false
+            isCritical: true
             isEnd: false
             onCancel: Abort
             onFailure: Abort
@@ -179,6 +179,8 @@ Resources:
 
                   if source_key.endswith('.zip'):
                     Command_unzip = f"unzip -d unzipped/ {source_key}"
+                  elif source_key.endswith('.tar'):
+                    Command_unzip = f"tar -xvf {source_key} -C unzipped"
                   elif source_key.endswith('.tar.gz') or source_key.endswith('.tgz'):
                     Command_unzip = f"tar -xvf {source_key} -C unzipped"
                   elif source_key.endswith('.gz'):
@@ -192,7 +194,7 @@ Resources:
                   elif source_key.endswith('.xz'):
                     Command_unzip = f"unxz -c {source_key} > unzipped/$(basename {source_key} .xz)"
                   else:    
-                    raise Exception(f"Error: Unsupported file type {source_bucket}/{source_key}. Currently only following formats are supported - zip, tar.gz, tgz, gz, tar.bz2, tbz, bz2, tar.xz, txz and xz")
+                    raise Exception(f"Error: Unsupported file type {source_bucket}/{source_key}. Currently only following formats are supported - zip, tar, tar.gz, tgz, gz, tar.bz2, tbz, bz2, tar.xz, txz and xz")
                     
                   return {
                     "StatusCode": 200,
@@ -564,6 +566,8 @@ Resources:
               source_file_name = source_key.split('/')[-1]
               if source_key.endswith('.zip'):
                   return decompress_zip(data)
+              elif source_key.endswith('.tar'):
+                  return decompress_tar(data)
               elif source_key.endswith('.tar.gz') or source_key.endswith('.tgz'):
                   return decompress_tar_gz(data)
               elif source_key.endswith('.gz'):
@@ -578,12 +582,16 @@ Resources:
                   return decompress_xz(data, source_file_name[:-3])
               else:
                 return {'StatusCode' : 400,
-                  "body": f"Error: Unsupported file type {source_bucket}/{source_key}. Currently only following formats are supported - zip, tar.gz, tgz, gz, tar.bz2, tbz, bz2, tar.xz, txz and xz"
+                  "body": f"Error: Unsupported file type {source_bucket}/{source_key}. Currently only following formats are supported - zip, tar, tar.gz, tgz, gz, tar.bz2, tbz, bz2, tar.xz, txz and xz"
                 }
 
           def decompress_zip(data):
               with zipfile.ZipFile(io.BytesIO(data), 'r') as zip_file:
                   return {name: zip_file.read(name) for name in zip_file.namelist()}
+
+          def decompress_tar(data):
+              with tarfile.open(fileobj=io.BytesIO(data), mode='r') as tar_file:
+                  return {member.name: tar_file.extractfile(member).read() for member in tar_file.getmembers() if not member.isdir()}
 
           def decompress_tar_gz(data):
               with tarfile.open(fileobj=io.BytesIO(data), mode='r:gz') as tar_file:
