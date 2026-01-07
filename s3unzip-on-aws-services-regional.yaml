@@ -92,7 +92,7 @@ Resources:
           * CreateScript
           * UnzipFile
           * TerminateInstances
-        assumeRole: arn:aws:iam::821584368891:role/s3unzip-SSM-Role
+        assumeRole: !Join ["", ["arn:aws:iam::", !Ref 'AWS::AccountId', ":role/s3unzip-SSM-Role"]]
         parameters:
           SourceBucket:
             description: The name of the S3 bucket that contains the zip file
@@ -256,7 +256,7 @@ Resources:
               InstanceType: '{{ InstanceType }}'
               SecurityGroupIds: '{{ SecurityGroupIds }}'
               MinInstanceCount: 1
-              IamInstanceProfileArn: arn:aws:iam::821584368891:instance-profile/s3unzip-EC2-Role
+              IamInstanceProfileArn: !Join ["", ["arn:aws:iam::", !Ref 'AWS::AccountId', ":instance-profile/s3unzip-EC2-Role"]]
             outputs:
               - Name: OnDemandInstanceId
                 Selector: $.InstanceIds[0]
@@ -348,7 +348,7 @@ Resources:
                 InstanceType: '{{ InstanceType }}'
                 SecurityGroupIds: '{{ SecurityGroupIds }}'
                 IamInstanceProfile:
-                  Arn: arn:aws:iam::821584368891:instance-profile/s3unzip-EC2-Role
+                  Arn: !Join ["", ["arn:aws:iam::", !Ref 'AWS::AccountId', ":instance-profile/s3unzip-EC2-Role"]]
                 BlockDeviceMappings:
                   - Ebs:
                       VolumeType: gp3
